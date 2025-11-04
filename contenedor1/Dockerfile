@@ -1,4 +1,4 @@
-FROM openjdk:21-jdk
+FROM openjdk:21-slim
 WORKDIR /app
 COPY . .
 RUN javac -cp /usr/local/lib/mysql-connector-j.jar contenedor1/server.java
