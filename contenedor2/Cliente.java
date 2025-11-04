@@ -8,7 +8,7 @@ public class Cliente {
     public static void main(String[] args) {
         try {
         
-            Socket socket = new Socket("localhost", 9599);
+            Socket socket = new Socket("server", 9599);
 
             
             BufferedReader consoleInput = new BufferedReader(new InputStreamReader(System.in));
