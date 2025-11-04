@@ -24,9 +24,9 @@ services:
     ports:
       - "9599:9599"
 
-  cliente:
+  Cliente:
     build: ./contenedor2
-    container_name: cliente_java
+    container_name: Cliente_java
     depends_on:
       - servidor
     stdin_open: true
