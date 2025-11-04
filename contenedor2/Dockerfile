@@ -1,5 +1,5 @@
 
-FROM openjdk:21-slim
+FROM eclipse-temurin:21-jdk
 WORKDIR /appdocker
 COPY . .
 RUN javac contenedor2/Cliente.java
