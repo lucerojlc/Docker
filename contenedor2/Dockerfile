@@ -1,7 +1,12 @@
-
 FROM eclipse-temurin:21-jdk
-WORKDIR /app
-COPY . .
-RUN javac contenedor2/Cliente.java
-CMD ["java",  "contenedor2.Cliente"]
 
+WORKDIR /app
+
+# Copiar código
+COPY Cliente.java .
+
+# Compilar SIN paquete
+RUN javac Cliente.java
+
+# Ejecutar SIN paquete
+CMD ["java", "Cliente"]

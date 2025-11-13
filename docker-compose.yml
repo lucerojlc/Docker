@@ -1,0 +1,62 @@
+name: docker
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: db_telefonica
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sistema_telefonico
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      timeout: 20s
+      retries: 20
+      interval: 3s
+      start_period: 40s
+    networks:
+      - app-network
+
+  servidor:
+    build: 
+      context: ./contenedor1
+      dockerfile: Dockerfile
+    container_name: servidor_java
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASS=root
+      - DB_NAME=sistema_telefonico
+    ports:
+      - "9599:9599"
+    networks:
+      - app-network
+    restart: on-failure
+
+  cliente:
+    build: 
+      context: ./contenedor2
+      dockerfile: Dockerfile
+    container_name: cliente_java
+    depends_on:
+      - servidor
+    environment:
+      - SERVER_HOST=servidor
+      - SERVER_PORT=9599
+    stdin_open: true
+    tty: true
+    networks:
+      - app-network
+    command: tail -f /dev/null
+
+networks:
+  app-network:
+    driver: bridge
+
+
