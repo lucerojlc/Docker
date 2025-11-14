@@ -11,7 +11,7 @@ pipeline {
             steps {
                 echo '========== Clonando repositorio desde GitHub =========='
                 git branch: 'main', 
-                    url: 'https://github.com/AlejoSys/Docker.git'
+                    url: 'https://github.com/lucerojlc/Docker.git'
                 echo 'Repositorio clonado exitosamente'
             }
         }
