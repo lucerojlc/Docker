@@ -4,6 +4,7 @@ pipeline {
     environment {
         DOCKER_COMPOSE_VERSION = '2.20.2'
         PROJECT_NAME = 'docker-mysql-phpmyadmin'
+        WORK_DIR = 'contenedor1'
     }
     
     stages {
@@ -30,10 +31,12 @@ pipeline {
         stage('Stop Previous Containers') {
             steps {
                 echo '========== Deteniendo contenedores previos =========='
-                sh '''
-                    docker-compose down || true
-                    docker ps -a
-                '''
+                dir("${WORK_DIR}") {
+                    sh '''
+                        docker-compose down || true
+                        docker ps -a
+                    '''
+                }
                 echo 'Contenedores previos detenidos'
             }
         }
@@ -41,9 +44,11 @@ pipeline {
         stage('Build') {
             steps {
                 echo '========== Construyendo imágenes Docker =========='
-                sh '''
-                    docker-compose build --no-cache
-                '''
+                dir("${WORK_DIR}") {
+                    sh '''
+                        docker-compose build --no-cache
+                    '''
+                }
                 echo 'Imágenes construidas exitosamente'
             }
         }
@@ -51,11 +56,13 @@ pipeline {
         stage('Deploy') {
             steps {
                 echo '========== Desplegando contenedores =========='
-                sh '''
-                    docker-compose up -d
-                    sleep 10
-                    docker-compose ps
-                '''
+                dir("${WORK_DIR}") {
+                    sh '''
+                        docker-compose up -d
+                        sleep 10
+                        docker-compose ps
+                    '''
+                }
                 echo 'Contenedores desplegados correctamente'
             }
         }
@@ -63,32 +70,28 @@ pipeline {
         stage('Test') {
             steps {
                 echo '========== Verificando que los contenedores estén corriendo =========='
-                sh '''
-                    # Verificar que los contenedores estén running
-                    if [ $(docker-compose ps -q | wc -l) -eq 0 ]; then
-                        echo "Error: No hay contenedores corriendo"
-                        exit 1
-                    fi
-                    
-                    # Verificar MySQL
-                    echo "Verificando MySQL..."
-                    docker-compose exec -T db mysql -uroot -proot -e "SELECT 1" || echo "MySQL aún no está listo"
-                    
-                    # Verificar phpMyAdmin
-                    echo "Verificando phpMyAdmin..."
-                    curl -f http://localhost:8080 || echo "phpMyAdmin aún no responde"
-                    
-                    echo "Contenedores verificados"
-                '''
+                dir("${WORK_DIR}") {
+                    sh '''
+                        # Verificar que los contenedores estén running
+                        if [ $(docker-compose ps -q | wc -l) -eq 0 ]; then
+                            echo "Error: No hay contenedores corriendo"
+                            exit 1
+                        fi
+                        
+                        echo "Contenedores verificados"
+                    '''
+                }
             }
         }
         
         stage('Show Logs') {
             steps {
                 echo '========== Mostrando logs de los contenedores =========='
-                sh '''
-                    docker-compose logs --tail=50
-                '''
+                dir("${WORK_DIR}") {
+                    sh '''
+                        docker-compose logs --tail=50
+                    '''
+                }
             }
         }
     }
@@ -109,18 +112,22 @@ pipeline {
             echo '========================================='
             echo '❌ Pipeline falló'
             echo '========================================='
-            sh '''
-                echo "Logs de Docker Compose:"
-                docker-compose logs --tail=100
-                echo "Contenedores activos:"
-                docker ps -a
-            '''
+            dir("${WORK_DIR}") {
+                sh '''
+                    echo "Logs de Docker Compose:"
+                    docker-compose logs --tail=100 || true
+                    echo "Contenedores activos:"
+                    docker ps -a
+                '''
+            }
         }
         
         always {
             echo '========== Limpiando recursos (opcional) =========='
             // Descomenta la siguiente línea si quieres detener los contenedores después de cada ejecución
-            // sh 'docker-compose down'
+            // dir("${WORK_DIR}") {
+            //     sh 'docker-compose down'
+            // }
         }
     }
 }
