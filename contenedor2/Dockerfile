@@ -1,7 +1,12 @@
 
-FROM eclipse-temurin:21-jdk
+FROM openjdk:8-jdk-alpine
+
 WORKDIR /app
-COPY . .
-RUN javac contenedor2/Cliente.java
-CMD ["java",  "contenedor2.Cliente"]
+
+COPY Cliente.java .
+
+RUN javac Cliente.java
+
+CMD ["java", "Cliente"]
+
 
