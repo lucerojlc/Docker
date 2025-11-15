@@ -21,9 +21,9 @@ services:
       - DB_PASS=root
     ports:
       - "9599:9599"
-  Cliente:
+  cliente:
     build: ../contenedor2  # <-- CAMBIO: de ./contenedor2 a ../contenedor2
-    container_name: Cliente_java
+    container_name: cliente_java
     depends_on:
       - servidor
     stdin_open: true
