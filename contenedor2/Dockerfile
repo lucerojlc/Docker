@@ -1,5 +1,5 @@
 
-FROM openjdk:8-jdk-alpine
+FROM eclipse-temurin:21-jdk
 
 WORKDIR /app
 
