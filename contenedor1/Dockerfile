@@ -1,6 +1,7 @@
 FROM eclipse-temurin:21-jdk
 
 WORKDIR /app
+<<<<<<< HEAD
 
 # Descargar MySQL Connector
 RUN apt-get update && apt-get install -y wget && \
@@ -14,3 +15,8 @@ RUN javac -cp ".:mysql-connector-j.jar" server.java
 
 # Ejecutar SIN paquete
 CMD ["java", "-cp", ".:mysql-connector-j.jar", "server"]
+=======
+COPY . .
+RUN javac -cp /usr/local/lib/mysql-connector-j.jar server.java
+CMD ["java", "-cp", ".:/usr/local/lib/mysql-connector-j.jar", "server"]
+>>>>>>> c86ab12b4a6e4fad13e7abbc383e990c1cf26f22

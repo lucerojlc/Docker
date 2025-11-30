@@ -1,0 +1,30 @@
+version: "3.9"
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: db_telefonica
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sistema_telefonico
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+  servidor:
+    build: .  # <-- CAMBIO: de ./contenedor1 a .
+    container_name: servidor_java
+    depends_on:
+      - mysql
+    environment:
+      - DB_HOST=mysql
+      - DB_USER=root
+      - DB_PASS=root
+    ports:
+      - "9599:9599"
+  cliente:
+    build: ../contenedor2  # <-- CAMBIO: de ./contenedor2 a ../contenedor2
+    container_name: cliente_java
+    depends_on:
+      - servidor
+    stdin_open: true
+    tty: true
