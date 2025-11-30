@@ -5,6 +5,8 @@ pipeline {
         DOCKER_COMPOSE_VERSION = '2.20.2'
         PROJECT_NAME = 'docker-mysql-phpmyadmin'
         WORK_DIR = 'contenedor1'
+        MAVEN_HOME = tool 'Maven'
+        PATH = "${MAVEN_HOME}/bin:${env.PATH}"
     }
     
     stages {
@@ -17,14 +19,82 @@ pipeline {
             }
         }
         
-        stage('Verify Docker') {
+        stage('Verify Tools') {
             steps {
-                echo '========== Verificando instalación de Docker =========='
+                echo '========== Verificando herramientas instaladas =========='
                 sh '''
                     docker --version
                     docker-compose --version
+                    mvn --version
+                    java -version
                 '''
-                echo 'Docker y Docker Compose están instalados correctamente'
+                echo 'Todas las herramientas están instaladas correctamente'
+            }
+        }
+        
+        stage('Build Application') {
+            steps {
+                echo '========== Compilando aplicación Java =========='
+                sh '''
+                    mvn clean compile
+                '''
+                echo 'Aplicación compilada exitosamente'
+            }
+        }
+        
+        stage('Unit Tests') {
+            steps {
+                echo '========== Ejecutando pruebas unitarias =========='
+                sh '''
+                    mvn test
+                '''
+                echo 'Pruebas unitarias completadas'
+            }
+            post {
+                always {
+                    // Publicar resultados de pruebas unitarias
+                    junit '**/target/surefire-reports/*.xml'
+                }
+            }
+        }
+        
+        stage('Code Coverage') {
+            steps {
+                echo '========== Generando reporte de cobertura de código =========='
+                sh '''
+                    mvn jacoco:report
+                '''
+                echo 'Reporte de cobertura generado'
+            }
+            post {
+                always {
+                    // Publicar reporte de cobertura JaCoCo
+                    jacoco(
+                        execPattern: '**/target/jacoco.exec',
+                        classPattern: '**/target/classes',
+                        sourcePattern: '**/src/main/java',
+                        exclusionPattern: '**/*Test*.class'
+                    )
+                    
+                    // Publicar reporte HTML
+                    publishHTML(target: [
+                        allowMissing: false,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target/site/jacoco',
+                        reportFiles: 'index.html',
+                        reportName: 'JaCoCo Coverage Report'
+                    ])
+                }
+            }
+        }
+        
+        stage('Code Quality Check') {
+            steps {
+                echo '========== Verificando calidad de código =========='
+                sh '''
+                    mvn jacoco:check || echo "Advertencia: Cobertura por debajo del umbral"
+                '''
             }
         }
         
@@ -41,7 +111,7 @@ pipeline {
             }
         }
         
-        stage('Build') {
+        stage('Build Docker Images') {
             steps {
                 echo '========== Construyendo imágenes Docker =========='
                 dir("${WORK_DIR}") {
@@ -49,17 +119,18 @@ pipeline {
                         docker-compose build --no-cache
                     '''
                 }
-                echo 'Imágenes construidas exitosamente'
+                echo 'Imágenes Docker construidas exitosamente'
             }
         }
         
-        stage('Deploy') {
+        stage('Deploy Containers') {
             steps {
                 echo '========== Desplegando contenedores =========='
                 dir("${WORK_DIR}") {
                     sh '''
                         docker-compose up -d
-                        sleep 10
+                        echo "Esperando a que los contenedores estén listos..."
+                        sleep 15
                         docker-compose ps
                     '''
                 }
@@ -67,9 +138,30 @@ pipeline {
             }
         }
         
-        stage('Test') {
+        stage('Integration Tests') {
             steps {
-                echo '========== Verificando que los contenedores estén corriendo =========='
+                echo '========== Ejecutando pruebas de integración =========='
+                sh '''
+                    # Esperar a que MySQL esté listo
+                    echo "Esperando a que MySQL esté disponible..."
+                    sleep 10
+                    
+                    # Ejecutar pruebas de integración
+                    mvn verify -DskipUnitTests=true
+                '''
+                echo 'Pruebas de integración completadas'
+            }
+            post {
+                always {
+                    // Publicar resultados de pruebas de integración
+                    junit '**/target/failsafe-reports/*.xml'
+                }
+            }
+        }
+        
+        stage('Health Check') {
+            steps {
+                echo '========== Verificando salud de los contenedores =========='
                 dir("${WORK_DIR}") {
                     sh '''
                         # Verificar que los contenedores estén running
@@ -78,19 +170,46 @@ pipeline {
                             exit 1
                         fi
                         
-                        echo "Contenedores verificados"
+                        # Verificar MySQL
+                        docker-compose exec -T mysql mysqladmin -uroot -proot ping || exit 1
+                        
+                        echo "✓ Todos los contenedores están saludables"
                     '''
                 }
             }
         }
         
-        stage('Show Logs') {
+        stage('Show Container Logs') {
             steps {
                 echo '========== Mostrando logs de los contenedores =========='
                 dir("${WORK_DIR}") {
                     sh '''
                         docker-compose logs --tail=50
                     '''
+                }
+            }
+        }
+        
+        stage('Generate Test Reports') {
+            steps {
+                echo '========== Generando reportes consolidados =========='
+                sh '''
+                    # Consolidar reportes de pruebas
+                    mvn surefire-report:report
+                    mvn site -DgenerateReports=false
+                '''
+            }
+            post {
+                always {
+                    // Publicar reporte de pruebas
+                    publishHTML(target: [
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target/site',
+                        reportFiles: 'surefire-report.html',
+                        reportName: 'Test Results Report'
+                    ])
                 }
             }
         }
@@ -106,6 +225,10 @@ pipeline {
             echo 'Usuario: root'
             echo 'Contraseña: root'
             echo '========================================='
+            echo '📊 Reportes disponibles:'
+            echo '   - JaCoCo Coverage Report'
+            echo '   - Test Results Report'
+            echo '========================================='
         }
         
         failure {
@@ -116,18 +239,31 @@ pipeline {
                 sh '''
                     echo "Logs de Docker Compose:"
                     docker-compose logs --tail=100 || true
+                    echo ""
                     echo "Contenedores activos:"
                     docker ps -a
                 '''
             }
         }
         
+        unstable {
+            echo '========================================='
+            echo '⚠️  Build inestable - Revisar pruebas'
+            echo '========================================='
+        }
+        
         always {
-            echo '========== Limpiando recursos (opcional) =========='
-            // Descomenta la siguiente línea si quieres detener los contenedores después de cada ejecución
-            // dir("${WORK_DIR}") {
-            //     sh 'docker-compose down'
-            // }
+            echo '========== Limpieza final =========='
+            
+            // Archivar artefactos importantes
+            archiveArtifacts artifacts: '**/target/*.jar, **/target/site/**/*', 
+                             allowEmptyArchive: true
+            
+            // Guardar reportes de cobertura
+            archiveArtifacts artifacts: '**/target/site/jacoco/**/*', 
+                             allowEmptyArchive: true
+            
+            echo 'Pipeline finalizado'
         }
     }
 }
