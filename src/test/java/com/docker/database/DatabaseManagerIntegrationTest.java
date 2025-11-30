@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 package com.docker.database;
 
 import org.junit.jupiter.api.*;
@@ -310,3 +309,4 @@ class DatabaseManagerIntegrationTest {
     }
 }
 >>>>>>> 6a312f22d09697e7b7d2675535161f7a485c0864
+
